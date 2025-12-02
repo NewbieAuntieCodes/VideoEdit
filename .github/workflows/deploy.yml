@@ -35,10 +35,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Clear npm cache
-        run: npm cache clean --force
       - name: Install dependencies
-        run: npm install --no-package-lock
+        run: npm install
       - name: Build
         run: npm run build
       - name: Setup Pages
@@ -47,7 +45,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload dist folder
-          path: './dist'
+          path: "./dist"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
