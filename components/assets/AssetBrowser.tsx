@@ -128,13 +128,10 @@ export const AssetBrowser: React.FC<AssetBrowserProps> = ({ onAddClip }) => {
     setIsGenerating(false);
   };
 
-  const assets: Asset[] = [
-    ...importedAssets,
-    { id: '1', type: ClipType.VIDEO, url: '', name: '演示视频 1.mp4', thumbnail: 'https://picsum.photos/100/100?random=1', duration: 125 },
-    { id: '2', type: ClipType.VIDEO, url: '', name: '演示视频 2.mp4', thumbnail: 'https://picsum.photos/100/100?random=2', duration: 45 },
-    { id: '3', type: ClipType.IMAGE, url: '', name: '风景图片.jpg', thumbnail: 'https://picsum.photos/100/100?random=3' },
-    { id: '4', type: ClipType.AUDIO, url: '', name: '欢快音乐.mp3', thumbnail: '', duration: 180 },
-  ].filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Only show imported assets, removed hardcoded demo assets
+  const assets: Asset[] = importedAssets.filter(a => 
+    a.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div 

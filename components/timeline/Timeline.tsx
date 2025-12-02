@@ -66,7 +66,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
     // 2. Try handling External File Drop
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-       Array.from(e.dataTransfer.files).forEach(file => {
+       Array.from(e.dataTransfer.files).forEach((file: File) => {
           let type = ClipType.TEXT;
           if (file.type.startsWith('video/')) type = ClipType.VIDEO;
           if (file.type.startsWith('audio/')) type = ClipType.AUDIO;

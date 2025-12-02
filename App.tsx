@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ProjectState, Track, Clip, ClipType, Asset } from './types';
 import { Header } from './components/Header';
@@ -5,6 +6,8 @@ import { AssetBrowser } from './components/assets/AssetBrowser';
 import { Player } from './components/player/Player';
 import { PropertiesPanel } from './components/properties/PropertiesPanel';
 import { Timeline } from './components/timeline/Timeline';
+import { parseCapCutDraft } from './services/capcutImportService';
+import { pickDirectoryAndFindFiles } from './services/fileSystemService';
 
 // Helper to create IDs
 const uid = () => Math.random().toString(36).substr(2, 9);
@@ -23,6 +26,8 @@ const INITIAL_STATE: ProjectState = {
 export default function App() {
   const [project, setProject] = useState<ProjectState>(INITIAL_STATE);
   const [zoom, setZoom] = useState(20); // pixels per second
+  const [projectName, setProjectName] = useState("未命名项目");
+  const [importedFileNames, setImportedFileNames] = useState<Set<string>>(new Set());
 
   // Playback Loop
   useEffect(() => {
@@ -142,6 +147,65 @@ export default function App() {
     });
   };
 
+  const handleImportCapCut = async (file: File) => {
+    const newState = await parseCapCutDraft(file);
+    if (newState) {
+      setProject(newState);
+      setProjectName("导入的剪映草稿 (素材丢失)");
+      // Reset zoom to fit roughly
+      setZoom(Math.max(window.innerWidth / newState.duration, 5));
+      
+      // Collect all expected file names for the "relink" feature
+      const names = new Set<string>();
+      newState.tracks.forEach(t => t.clips.forEach(c => {
+        if (c.type === ClipType.VIDEO || c.type === ClipType.AUDIO || c.type === ClipType.IMAGE) {
+          names.add(c.name);
+        }
+      }));
+      setImportedFileNames(names);
+      
+      alert("草稿导入成功！\n注意：由于浏览器权限限制，视频文件暂时无法加载。\n请点击顶部【关联素材文件夹】按钮，选择存放视频的文件夹进行自动匹配。");
+    }
+  };
+
+  const handleRelinkAssets = async () => {
+    if (importedFileNames.size === 0) {
+      alert("没有需要关联的导入文件。");
+      return;
+    }
+
+    alert("请选择包含您素材的文件夹（例如：您的视频下载文件夹或整个D盘）。\n系统将自动搜索并匹配文件名。");
+    
+    const foundFilesMap = await pickDirectoryAndFindFiles(importedFileNames);
+    const foundCount = Object.keys(foundFilesMap).length;
+    
+    if (foundCount === 0) {
+      alert("在选定的文件夹中未找到匹配的素材。");
+      return;
+    }
+
+    // Update project clips with new Blob URLs
+    setProject(prev => {
+      const newTracks = prev.tracks.map(track => ({
+        ...track,
+        clips: track.clips.map(clip => {
+          const file = foundFilesMap[clip.name];
+          if (file) {
+            return { 
+              ...clip, 
+              src: URL.createObjectURL(file) 
+            };
+          }
+          return clip;
+        })
+      }));
+      return { ...prev, tracks: newTracks };
+    });
+    
+    setProjectName("导入的剪映草稿 (素材已关联)");
+    alert(`成功关联了 ${foundCount} 个素材文件！`);
+  };
+
   const selectedClip = React.useMemo(() => {
     for (const track of project.tracks) {
       const clip = track.clips.find(c => c.id === project.selectedClipId);
@@ -153,8 +217,10 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-200 font-sans overflow-hidden">
       <Header 
-        projectName="未命名项目" 
+        projectName={projectName}
         onExport={() => alert("导出功能将使用 ffmpeg.wasm 渲染时间轴")} 
+        onImportCapCut={handleImportCapCut}
+        onRelinkAssets={importedFileNames.size > 0 ? handleRelinkAssets : undefined}
       />
       
       <div className="flex-1 flex overflow-hidden">
