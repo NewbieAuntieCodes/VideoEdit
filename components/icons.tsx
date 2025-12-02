@@ -4,7 +4,8 @@ import {
   Scissors, Trash2, Plus, Image as ImageIcon, 
   Music, Type, Settings, Download, Wand2,
   LayoutTemplate, ZoomIn, ZoomOut, Volume2, 
-  Layers, Square, RotateCcw
+  Layers, Square, RotateCcw,
+  Search, LayoutGrid, ListFilter, Upload
 } from 'lucide-react';
 
 export const Icons = {
@@ -12,5 +13,6 @@ export const Icons = {
   Scissors, Trash2, Plus, Image: ImageIcon, 
   Music, Type, Settings, Download, Wand2,
   LayoutTemplate, ZoomIn, ZoomOut, Volume2, 
-  Layers, Square, RotateCcw
+  Layers, Square, RotateCcw,
+  Search, LayoutGrid, ListFilter, Upload
 };

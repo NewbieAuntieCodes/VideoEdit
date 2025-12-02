@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Track, Clip } from '../../types';
+import { Track, Clip, ClipType, Asset } from '../../types';
 import { ClipItem } from './ClipItem';
 import { TimeRuler } from './TimeRuler';
 import { Icons } from '../icons';
@@ -16,6 +16,7 @@ interface TimelineProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onAddTrack: () => void;
+  onDropAsset: (trackId: string, time: number, asset: Asset) => void;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -28,9 +29,61 @@ export const Timeline: React.FC<TimelineProps> = ({
   onSeek,
   onZoomIn,
   onZoomOut,
-  onAddTrack
+  onAddTrack,
+  onDropAsset
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Helper to get time from mouse x
+  const getTimeFromEvent = (e: React.DragEvent) => {
+    if (!scrollContainerRef.current) return 0;
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const scrollLeft = scrollContainerRef.current.scrollLeft;
+    const x = e.clientX - rect.left + scrollLeft;
+    return Math.max(0, x / zoom);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent, trackId: string) => {
+    e.preventDefault();
+    const time = getTimeFromEvent(e);
+    
+    // 1. Try handling Internal Asset Drag
+    const assetJson = e.dataTransfer.getData('application/novacut-asset');
+    if (assetJson) {
+      try {
+        const asset = JSON.parse(assetJson) as Asset;
+        onDropAsset(trackId, time, asset);
+        return;
+      } catch (err) {
+        console.error("Failed to parse dropped asset", err);
+      }
+    }
+
+    // 2. Try handling External File Drop
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+       Array.from(e.dataTransfer.files).forEach(file => {
+          let type = ClipType.TEXT;
+          if (file.type.startsWith('video/')) type = ClipType.VIDEO;
+          if (file.type.startsWith('audio/')) type = ClipType.AUDIO;
+          if (file.type.startsWith('image/')) type = ClipType.IMAGE;
+
+          const url = URL.createObjectURL(file);
+          const asset: Asset = {
+            id: Math.random().toString(36).substr(2, 9),
+            type,
+            name: file.name,
+            url: url,
+            thumbnail: type === ClipType.IMAGE ? url : undefined
+          };
+          onDropAsset(trackId, time, asset);
+       });
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-slate-950 select-none">
@@ -105,7 +158,12 @@ export const Timeline: React.FC<TimelineProps> = ({
               />
 
               {tracks.map((track) => (
-                <div key={track.id} className="h-24 border-b border-slate-800/50 relative bg-slate-900/20 hover:bg-slate-900/40 transition-colors">
+                <div 
+                  key={track.id} 
+                  className="h-24 border-b border-slate-800/50 relative bg-slate-900/20 transition-colors hover:bg-slate-900/40"
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, track.id)}
+                >
                   {track.clips.map((clip) => (
                     <ClipItem 
                       key={clip.id} 

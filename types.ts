@@ -49,4 +49,5 @@ export interface Asset {
   url: string;
   name: string;
   thumbnail?: string;
+  duration?: number; // Duration in seconds if available
 }

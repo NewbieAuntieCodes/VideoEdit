@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ProjectState, Track, Clip, ClipType } from './types';
+import { ProjectState, Track, Clip, ClipType, Asset } from './types';
 import { Header } from './components/Header';
 import { AssetBrowser } from './components/assets/AssetBrowser';
 import { Player } from './components/player/Player';
@@ -65,16 +65,44 @@ export default function App() {
     }));
   };
 
-  const handleAddClip = (type: ClipType, src?: string, name?: string) => {
+  const handleAddClip = (type: ClipType, src?: string, name?: string, duration?: number) => {
+    // Find suitable track
+    const targetTrack = project.tracks.find(t => 
+        (type === ClipType.AUDIO && t.type === 'audio') || 
+        (type !== ClipType.AUDIO && t.type === 'visual')
+    );
+    
+    if (targetTrack) {
+        handleAddClipToTrack(targetTrack.id, project.currentTime, {
+            id: uid(),
+            type,
+            name: name || '新素材',
+            url: src || '',
+            duration: duration
+        });
+    } else {
+        // Fallback or create track logic could go here
+    }
+  };
+
+  const handleAddClipToTrack = (trackId: string, time: number, asset: Asset) => {
+    // Determine duration: Use asset duration if video/audio, else default
+    let clipDuration = 5; // Default for Image/Text
+    if (asset.duration) {
+      clipDuration = asset.duration;
+    } else if (asset.type === ClipType.VIDEO || asset.type === ClipType.AUDIO) {
+      clipDuration = 10; // Fallback if no duration metadata
+    }
+
     const newClip: Clip = {
       id: uid(),
-      trackId: '1', // Default to first track for demo
-      type,
-      name: name || '新片段',
-      start: project.currentTime,
-      duration: type === ClipType.IMAGE || type === ClipType.TEXT ? 5 : 10,
-      src,
-      content: type === ClipType.TEXT ? (name || "文本") : undefined,
+      trackId: trackId,
+      type: asset.type,
+      name: asset.name,
+      start: time,
+      duration: clipDuration,
+      src: asset.url,
+      content: asset.type === ClipType.TEXT ? (asset.name || "文本") : undefined,
       properties: {
         opacity: 100,
         scale: 100,
@@ -87,20 +115,12 @@ export default function App() {
     };
 
     setProject(prev => {
-        // Find suitable track
-        const targetTrackIndex = prev.tracks.findIndex(t => 
-            (type === ClipType.AUDIO && t.type === 'audio') || 
-            (type !== ClipType.AUDIO && t.type === 'visual')
-        );
-        
-        if (targetTrackIndex === -1) return prev; // Should handle creating track
-
-        const newTracks = [...prev.tracks];
-        newTracks[targetTrackIndex] = {
-            ...newTracks[targetTrackIndex],
-            clips: [...newTracks[targetTrackIndex].clips, newClip]
-        };
-
+        const newTracks = prev.tracks.map(t => {
+            if (t.id === trackId) {
+                return { ...t, clips: [...t.clips, newClip] };
+            }
+            return t;
+        });
         return { ...prev, tracks: newTracks, selectedClipId: newClip.id };
     });
   };
@@ -163,6 +183,7 @@ export default function App() {
                onZoomIn={() => setZoom(z => Math.min(z * 1.2, 100))}
                onZoomOut={() => setZoom(z => Math.max(z / 1.2, 5))}
                onAddTrack={handleAddTrack}
+               onDropAsset={handleAddClipToTrack}
              />
           </div>
         </div>
